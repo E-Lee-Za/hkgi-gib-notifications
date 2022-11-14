@@ -6,6 +6,7 @@ import http.client
 import base64
 import time
 import ast
+import json
 
 conn = http.client.HTTPSConnection("misguided.enterprises")
 payload = ''
@@ -27,7 +28,7 @@ def gib_lookout():
     res = conn.getresponse()
     data = res.read()
 
-    activity = ast.literal_eval(data.decode("utf-8"))
+    activity = json.loads(data.decode("utf-8"))
     for event in activity:
         if event["kind"] == "gib":
             if event["ts"] <= cursor:
@@ -35,7 +36,13 @@ def gib_lookout():
             else:
                 print(event["from"], "sent", event["to"], event["amount"], event["item"])
 
-                app.client.chat_postMessage(channel=slackMap[event["to"]],
+                conn.request("GET", "/hksl/user?username={}".format(event["to"], payload, headers))
+                res = conn.getresponse()
+                data = res.read()
+                userinfo = json.loads(data.decode("utf-8"))
+                slackID = userinfo["user"]["slackId"]
+
+                app.client.chat_postMessage(channel=slackID,
                                    text="{0} sent you {1} {2}!".format(event["from"], event["amount"], event["item"]))
                 
                 cursor = event["ts"]+1
@@ -43,11 +50,8 @@ def gib_lookout():
 #app.client.chat_postMessage(channel="UTZBECLA2", text="hello world!")
 
 running = True
-
 while running:
     gib_lookout()
-
-
 
 
 # Start your app
